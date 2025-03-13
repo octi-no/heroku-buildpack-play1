@@ -35,9 +35,10 @@ if [ -z "$javaVersion" ]; then
   javaVersion="11"
 fi
 
+BUILDPACK_DIR=$(cd $(dirname $0); cd ..; pwd)
+
 echo -n "-----> Installing OpenJDK ${javaVersion}..."
-install_java_with_overlay ${BUILD_DIR} ${javaVersion}
-jdk_overlay ${BUILD_DIR}
+install_openjdk ${BUILD_DIR} ${BUILDPACK_DIR} ${javaVersion}
 echo " done"
 
 PLAY_PATH=".play"
@@ -111,7 +112,12 @@ done
 
 PROFILE_PATH="$BUILD_DIR/.profile.d/play.sh"
 mkdir -p $(dirname $PROFILE_PATH)
+echo 'export JAVA_HOME=/app/.jdk' >> $PROFILE_PATH
 echo 'export PATH="/app/.play:/app/.jdk/bin:/app/.tools:$PATH"' >> $PROFILE_PATH
+
+# Set JAVA_HOME for the rest of the script
+export JAVA_HOME="${BUILD_DIR}/.jdk"
+export PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Remove build time dependencies from slug
 # (Note: runtime modules are copied to slug with --forceCopy option)
