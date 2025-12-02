@@ -104,18 +104,29 @@ https://devcenter.heroku.com/articles/scala-support"
 install_play()
 {
   VER_TO_INSTALL=$1
-  PLAY_URL="https://s3.amazonaws.com/heroku-jvm-langpack-play/play-heroku-$VER_TO_INSTALL.tar.gz"
   PLAY_TAR_FILE="play-heroku.tar.gz"
+  
+  # Try custom S3 bucket first (for custom Play builds like 1.11.0)
+  CUSTOM_PLAY_URL="https://tryggmedia-storage.s3-eu-west-1.amazonaws.com/play/play-heroku-$VER_TO_INSTALL.tar.gz"
+  PLAY_URL="https://s3.amazonaws.com/heroku-jvm-langpack-play/play-heroku-$VER_TO_INSTALL.tar.gz"
 
   validate_play_version ${VER_TO_INSTALL}
 
   echo "-----> Installing Play! $VER_TO_INSTALL....."
 
-  status=$(curl --retry 3 --silent --head -w %{http_code} -L ${PLAY_URL} -o /dev/null)
-  if [ "$status" != "200" ]; then
-    download_play_official ${VER_TO_INSTALL} ${PLAY_TAR_FILE}
+  # First try custom S3 bucket
+  status=$(curl --retry 3 --silent --head -w %{http_code} -L ${CUSTOM_PLAY_URL} -o /dev/null)
+  if [ "$status" == "200" ]; then
+    echo "Downloading from custom S3 bucket..." | indent
+    curl --retry 3 -s --max-time 150 -L $CUSTOM_PLAY_URL -o $PLAY_TAR_FILE
   else
-    curl --retry 3 -s --max-time 150 -L $PLAY_URL -o $PLAY_TAR_FILE
+    # Then try official Heroku S3
+    status=$(curl --retry 3 --silent --head -w %{http_code} -L ${PLAY_URL} -o /dev/null)
+    if [ "$status" != "200" ]; then
+      download_play_official ${VER_TO_INSTALL} ${PLAY_TAR_FILE}
+    else
+      curl --retry 3 -s --max-time 150 -L $PLAY_URL -o $PLAY_TAR_FILE
+    fi
   fi
 
   if [ ! -f $PLAY_TAR_FILE ]; then
